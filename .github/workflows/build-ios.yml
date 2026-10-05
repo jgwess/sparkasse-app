@@ -16,22 +16,39 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Dependencies
-        run: |
-          npm install
-          npx cap sync ios
+        run: npm ci || npm install
 
-      - name: Build Unsigned iOS App Payload
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
+
+      - name: Install CocoaPods
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -configuration Release clean build CODE_SIGNING_ALLOWED=NO
+          pod install
+
+      - name: Build Unsigned iOS App
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            clean build
 
       - name: Package into IPA
         run: |
           mkdir -p Payload
-          cp -r ios/App/build/Release-iphoneos/App.app Payload/
+          APP_PATH=$(find ios/App -name "App.app" -type d | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "App.app" -type d | head -n 1)
+          fi
+          cp -r "$APP_PATH" Payload/
           zip -r SparkasseMockup.ipa Payload
 
       - name: Upload IPA Artifact
