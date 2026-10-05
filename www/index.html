@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sparkasse</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1c1c1e;
+            --card-header: #2c2c2e;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --sparkasse-red: #ff0000;
+            --accent-blue: #29b6f6;
+            --green-amount: #7ecb46;
+            --border-color: #2a2a2c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            min-height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Viewport Container with Native Safe Area Support */
+        .viewport {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-color);
+            transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Vector Logo SVG Styling */
+        .sp-logo-svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+            color: #ffffff;
+        }
+
+        .logo-circle .sp-logo-svg {
+            transform: translateY(-3px);
+        }
+
+        .account-badge .sp-logo-svg {
+            transform: translateY(-1.5px);
+        }
+
+        /* 1. Loading Screen */
+        #loading-screen {
+            justify-content: center;
+            align-items: center;
+            z-index: 80;
+            background-color: #171717;
+        }
+
+        .logo-circle {
+            width: 68px;
+            height: 68px;
+            background-color: var(--sparkasse-red);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 14px;
+        }
+
+        /* 2. Login Screen */
+        #login-screen {
+            padding: 40px 24px 20px 24px;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 70;
+            background-color: #171717;
+        }
+
+        .login-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            margin-top: 40px;
+        }
+
+        .login-title {
+            color: #fff;
+            font-size: 22px;
+            font-weight: 700;
+            margin-top: 28px;
+            margin-bottom: 36px;
+            text-align: center;
+        }
+
+        .input-container {
+            width: 100%;
+            position: relative;
+            background-color: #242426;
+            border: 1.5px solid #3882be;
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .input-box {
+            display: flex;
+            flex-direction: column;
+            width: 85%;
+        }
+
+        .input-label {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 2px;
+        }
+
+        .input-field {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #fff;
+            font-size: 16px;
+            width: 100%;
+            letter-spacing: 2px;
+            user-select: auto;
+        }
+
+        .eye-icon {
+            width: 20px;
+            height: 20px;
+            fill: #aaa;
+            cursor: pointer;
+        }
+
+        .forgot-password {
+            color: #5bb3f8;
+            font-size: 14px;
+            margin-top: 22px;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .login-btn {
+            width: 100%;
+            background-color: var(--sparkasse-red);
+            color: #fff;
+            border: none;
+            padding: 15px;
+            border-radius: 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        /* Spinner Overlay */
+        .spinner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .spinner-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* App Header */
+        .app-header {
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-color);
+        }
+
+        .header-icon-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .header-icon-btn svg {
+            fill: #fff;
+            width: 22px;
+            height: 22px;
+        }
+
+        .center-header-logo {
+            width: 22px;
+            height: 28px;
+        }
+
+        /* Main Scroll Area */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 16px 20px 16px;
+        }
+
+        /* Category Filter Pills */
+        .pills-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .pills-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .pill-btn {
+            background-color: #242426;
+            border: 1px solid #38383a;
+            color: var(--text-primary);
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        /* Search Bar */
+        .search-container {
+            background-color: #242426;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-container svg {
+            fill: #8e8e93;
+            width: 18px;
+            height: 18px;
+        }
+
+        .search-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #fff;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .mic-icon svg {
+            fill: #8e8e93;
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Quick Access Grid */
+        .section-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .section-title {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .section-link {
+            color: #3882be;
+            font-size: 13px;
+            text-decoration: underline;
+        }
+
+        .quick-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+
+        .action-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-align: center;
+        }
+
+        .action-circle {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background-color: #2c2c2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .action-circle.wero {
+            background-color: #ffe600;
+            color: #000;
+            font-weight: 900;
+            font-size: 13px;
+            letter-spacing: -0.5px;
+        }
+
+        .action-circle svg {
+            fill: #fff;
+            width: 24px;
+            height: 24px;
+        }
+
+        .action-label {
+            color: #fff;
+            font-size: 11px;
+            line-height: 1.2;
+        }
+
+        /* Container Card Component */
+        .card-container {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            border: 1px solid #2c2c2e;
+        }
+
+        .card-header-bar {
+            background-color: #2c2c2e;
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-header-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .card-header-title svg {
+            fill: #fff;
+            width: 14px;
+            height: 14px;
+        }
+
+        .card-header-amount {
+            color: var(--green-amount);
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 16px 14px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .account-info-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .account-badge {
+            width: 36px;
+            height: 36px;
+            background-color: var(--sparkasse-red);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 7px;
+            flex-shrink: 0;
+        }
+
+        .account-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .account-name {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .account-iban {
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        .account-owner {
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        .account-balance-bottom {
+            text-align: right;
+            color: var(--green-amount);
+            font-size: 15px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .entries-account-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 6px 0 16px 0;
+        }
+
+        .entries-account-name {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .entries-account-balance {
+            color: var(--green-amount);
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .entries-account-sub {
+            color: #8e8e93;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        .month-header {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 700;
+            margin: 20px 0 8px 0;
+        }
+
+        .date-header {
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 600;
+            margin: 12px 0 8px 0;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .tx-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tx-icon-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px dashed #555;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            background-color: #242426;
+        }
+
+        .tx-icon-circle.amazon {
+            border: none;
+            background-color: #000;
+            color: #fff;
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .tx-icon-circle.sparkasse {
+            border: none;
+            background-color: var(--sparkasse-red);
+            padding: 8px;
+        }
+
+        .tx-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        .tx-title {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tx-sub {
+            color: #8e8e93;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tx-amount-col {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            margin-left: 10px;
+            white-space: nowrap;
+        }
+
+        .tx-amount {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .green-badge {
+            background-color: #7ecb46;
+            color: #000000;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 14px;
+            display: inline-block;
+        }
+
+        /* Bottom Tab Bar */
+        .tab-bar {
+            height: 60px;
+            background-color: #171717;
+            border-top: 1px solid #2a2a2c;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: #8e8e93;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .tab-item.active {
+            color: #ffffff;
+        }
+
+        .tab-item svg {
+            fill: currentColor;
+            width: 22px;
+            height: 22px;
+        }
+
+        /* Screen Slide Animation Helpers */
+        .slide-left-out {
+            transform: translateX(-100%);
+        }
+
+        .slide-left-in {
+            transform: translateX(0);
+        }
+
+        .slide-right-offscreen {
+            transform: translateX(100%);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Proportional Sparkasse Vector Symbol Definition -->
+    <svg style="display:none;">
+        <defs>
+            <g id="sparkasse-symbol">
+                <circle cx="190" cy="60" r="60" fill="currentColor"/>
+                <path fill-rule="evenodd" fill="currentColor" d="
+                    M 60 160 
+                    H 320 
+                    A 60 60 0 0 1 380 220 
+                    V 410 
+                    A 60 60 0 0 1 320 470 
+                    H 60 
+                    A 60 60 0 0 1 0 410 
+                    V 220 
+                    A 60 60 0 0 1 60 160 
+                    Z 
+                    M 85 238 H 380 V 283 H 85 Z 
+                    M 0 347 H 295 V 392 H 0 Z
+                " />
+            </g>
+        </defs>
+    </svg>
+
+    <div class="viewport">
+
+        <!-- 1. LOADING SCREEN -->
+        <div id="loading-screen" class="screen">
+            <div class="logo-circle">
+                <svg viewBox="0 0 380 470" class="sp-logo-svg"><use href="#sparkasse-symbol"/></svg>
+            </div>
+        </div>
+
+        <!-- 2. LOGIN SCREEN -->
+        <div id="login-screen" class="screen hidden">
+            <div class="login-content">
+                <div class="logo-circle">
+                    <svg viewBox="0 0 380 470" class="sp-logo-svg"><use href="#sparkasse-symbol"/></svg>
+                </div>
+                <div class="login-title">App Sparkasse entsperren</div>
+
+                <div class="input-container" id="password-container">
+                    <div class="input-box">
+                        <span class="input-label">App-Passwort</span>
+                        <input type="password" id="password-input" class="input-field" autocomplete="off" placeholder="" />
+                    </div>
+                    <svg class="eye-icon" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                </div>
+
+                <div class="forgot-password">App-Passwort vergessen</div>
+            </div>
+
+            <button class="login-btn" id="unlock-btn">App entsperren</button>
+        </div>
+
+        <!-- 3. MAIN MENU SCREEN -->
+        <div id="menu-screen" class="screen hidden">
+            <div class="app-header">
+                <div class="header-icon-btn">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                </div>
+                <div class="header-icon-btn">
+                    <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                </div>
+                <div class="center-header-logo">
+                    <svg viewBox="0 0 380 470" class="sp-logo-svg"><use href="#sparkasse-symbol"/></svg>
+                </div>
+                <div class="header-icon-btn">
+                    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/></svg>
+                </div>
+                <div class="header-icon-btn">
+                    <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div class="pills-row">
+                    <span class="pills-label">Bereiche:</span>
+                    <div class="pill-btn">Immobilien</div>
+                    <div class="pill-btn">Anlegen</div>
+                </div>
+
+                <div class="search-container">
+                    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input type="text" class="search-input" placeholder="Was möchten Sie tun?" readonly />
+                    <div class="mic-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+                    </div>
+                </div>
+
+                <div class="section-header-row">
+                    <span class="section-title">Schnellzugriffe</span>
+                    <span class="section-link">Alle anzeigen</span>
+                </div>
+
+                <div class="quick-actions-grid">
+                    <div class="action-item">
+                        <div class="action-circle">
+                            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4V8h16v10zm-2-1h-6v-2h6v2z"/></svg>
+                        </div>
+                        <span class="action-label">Geld senden</span>
+                    </div>
+                    <div class="action-item">
+                        <div class="action-circle wero">wero</div>
+                        <span class="action-label">Wero nutzen</span>
+                    </div>
+                    <div class="action-item">
+                        <div class="action-circle">
+                            <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+                        </div>
+                        <span class="action-label">Umsätze suchen</span>
+                    </div>
+                    <div class="action-item">
+                        <div class="action-circle">
+                            <svg viewBox="0 0 24 24"><path d="M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2 0v8.99h9c-.53-4.78-4.22-8.47-9-8.99zm0 11.01V22c4.78-.52 8.47-4.21 9-8.99h-9z"/></svg>
+                        </div>
+                        <span class="action-label">Finanzplaner</span>
+                    </div>
+                </div>
+
+                <!-- KONTEN UND KARTEN -->
+                <div class="card-container">
+                    <div class="card-header-bar">
+                        <div class="card-header-title">
+                            <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                            <span>Konten und Karten</span>
+                        </div>
+                        <span class="card-header-amount">117,07 €</span>
+                    </div>
+                    <div class="card-body" id="konten-content-box">
+                        <div class="account-info-row">
+                            <div class="account-badge">
+                                <svg viewBox="0 0 380 470" class="sp-logo-svg"><use href="#sparkasse-symbol"/></svg>
+                            </div>
+                            <div class="account-details">
+                                <span class="account-name">Jason Glyn Wessalowski</span>
+                                <span class="account-iban">DE52 6635 0036 0017 6342 64</span>
+                                <span class="account-owner">Jason Wessalowski</span>
+                            </div>
+                        </div>
+                        <div class="account-balance-bottom">117,07 €</div>
+                    </div>
+                </div>
+
+                <!-- LETZTE UMSÄTZE (PREVIEW) -->
+                <div class="card-container">
+                    <div class="card-header-bar">
+                        <div class="card-header-title">
+                            <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                            <span>Letzte Umsätze</span>
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">PayPal Europe S.a.r.l. et Cie S.C.A</span>
+                                    <span class="tx-sub">1053462808843/., Ihr Einkauf bei...</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–11,94 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- BOTTOM TAB NAVIGATION -->
+            <div class="tab-bar">
+                <div class="tab-item active">
+                    <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                    <span>Start</span>
+                </div>
+                <div class="tab-item">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm2 4h12v2H6zm3 4h6v2H9z"/></svg>
+                    <span>Produkte</span>
+                </div>
+                <div class="tab-item">
+                    <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6z"/></svg>
+                    <span>Services</span>
+                </div>
+                <div class="tab-item">
+                    <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                    <span>Profil</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. LIST OF ENTRIES SCREEN -->
+        <div id="entries-screen" class="screen slide-right-offscreen">
+            <div class="app-header">
+                <div class="header-icon-btn" id="back-to-menu-btn">
+                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                </div>
+                <div class="center-header-logo">
+                    <svg viewBox="0 0 380 470" class="sp-logo-svg"><use href="#sparkasse-symbol"/></svg>
+                </div>
+                <div style="width:32px;"></div>
+            </div>
+
+            <div class="main-content">
+                
+                <div class="entries-account-header">
+                    <span class="entries-account-name">Jason Glyn Wessalowski</span>
+                    <span class="entries-account-balance">117,07 €</span>
+                    <span class="entries-account-sub">Kontostand am 05.10.2026</span>
+                </div>
+
+                <div class="section-header-row">
+                    <span class="section-title">Schnellzugriffe</span>
+                    <span class="section-link">Alle anzeigen</span>
+                </div>
+
+                <div class="quick-actions-grid">
+                    <div class="action-item">
+                        <div class="action-circle">
+                            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4V8h16v10zm-2-1h-6v-2h6v2z"/></svg>
+                        </div>
+                        <span class="action-label">Geld senden</span>
+                    </div>
+                    <div class="action-item">
+                        <div class="action-circle">
+                            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                        </div>
+                        <span class="action-label">Kontodetails</span>
+                    </div>
+                    <div class="action-item">
+                        <div class="action-circle">
+                            <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+                        </div>
+                        <span class="action-label">Umsätze suchen</span>
+                    </div>
+                    <div class="action-item">
+                        <div class="action-circle">
+                            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                        </div>
+                        <span class="action-label">Daueraufträge</span>
+                    </div>
+                </div>
+
+                <!-- HEUTE -->
+                <div class="date-header">Heute</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">PayPal Europe S.a.r.l. et Cie S.C.A</span>
+                                    <span class="tx-sub">1053462808843/., Ihr Einkauf bei...</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–11,94 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Klarna Bank AB</span>
+                                    <span class="tx-sub">Purchase at VitaminVersand24</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–6,05 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle amazon">amazon</div>
+                                <div class="tx-details">
+                                    <span class="tx-title">AMAZON EU S.A R.L., NIEDERLASS...</span>
+                                    <span class="tx-sub">D01-5203301-6536641 AMZNPrime DE 6R97ZUTSSJCY1Y0U</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–8,99 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 01.10.2026 -->
+                <div class="date-header">01.10.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Volker Wessalowski</span>
+                                    <span class="tx-sub">GUTSCHR. UEBERW. DAUERAUFTR</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="green-badge">200,00 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SEPTEMBER 2026 -->
+                <div class="month-header">September 2026</div>
+
+                <!-- 30.09.2026 -->
+                <div class="date-header">30.09.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle sparkasse">
+                                    <svg viewBox="0 0 380 470" class="sp-logo-svg"><use href="#sparkasse-symbol"/></svg>
+                                </div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Abrechnung 30.09.2026</span>
+                                    <span class="tx-sub">siehe Anlage</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="green-badge">0,00 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle sparkasse">
+                                    <svg viewBox="0 0 380 470" class="sp-logo-svg"><use href="#sparkasse-symbol"/></svg>
+                                </div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Entgeltabrechnung</span>
+                                    <span class="tx-sub">siehe Anlage</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–5,95 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Klarna Bank AB</span>
+                                    <span class="tx-sub">Purchase at Fruugo</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="green-badge">9,87 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 28.09.2026 -->
+                <div class="date-header">28.09.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">REWE Sagasser OHG</span>
+                                    <span class="tx-sub">Kartenzahlung Markt Bendorf</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–28,45 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Steam Games Interactive</span>
+                                    <span class="tx-sub">Purchase 884712012</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–14,99 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 25.09.2026 -->
+                <div class="date-header">25.09.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Spotify AB</span>
+                                    <span class="tx-sub">Monatsabonnement Premium</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–10,99 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Lukas Becker</span>
+                                    <span class="tx-sub">Rückzahlung Kino</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="green-badge">18,50 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 21.09.2026 -->
+                <div class="date-header">21.09.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">ARAL Tankstelle GmbH</span>
+                                    <span class="tx-sub">Kartenzahlung Kraftstoff</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–42,10 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle amazon">amazon</div>
+                                <div class="tx-details">
+                                    <span class="tx-title">AMAZON EU S.A R.L.</span>
+                                    <span class="tx-sub">Bestellung 302-8812741</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–22,90 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AUGUST 2026 -->
+                <div class="month-header">August 2026</div>
+
+                <!-- 31.08.2026 -->
+                <div class="date-header">31.08.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle sparkasse">
+                                    <svg viewBox="0 0 380 470" class="sp-logo-svg"><use href="#sparkasse-symbol"/></svg>
+                                </div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Entgeltabrechnung</span>
+                                    <span class="tx-sub">siehe Anlage</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–5,95 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Vodafone GmbH</span>
+                                    <span class="tx-sub">Mobilfunk Rechnungsnr. 92104812</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–29,99 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 28.08.2026 -->
+                <div class="date-header">28.08.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Apple Distribution International</span>
+                                    <span class="tx-sub">iCloud+ 200GB Speicherplan</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–2,99 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">DM-Drogerie Markt GmbH</span>
+                                    <span class="tx-sub">Kartenzahlung Filiale 412</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–12,40 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 20.08.2026 -->
+                <div class="date-header">20.08.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Uber BV</span>
+                                    <span class="tx-sub">Fahrtkosten Amsterdam</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–16,80 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Maximilian Hoffmann</span>
+                                    <span class="tx-sub">GUTSCHRIFT Wero</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="green-badge">35,00 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 14.08.2026 -->
+                <div class="date-header">14.08.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">ALDI Süd Dienstleistungs-SE</span>
+                                    <span class="tx-sub">Kartenzahlung Filiale 108</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–31,70 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Lieferando.de</span>
+                                    <span class="tx-sub">Bestellung Asia Express</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–21,50 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- JULI 2026 -->
+                <div class="month-header">Juli 2026</div>
+
+                <!-- 31.07.2026 -->
+                <div class="date-header">31.07.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle sparkasse">
+                                    <svg viewBox="0 0 380 470" class="sp-logo-svg"><use href="#sparkasse-symbol"/></svg>
+                                </div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Entgeltabrechnung</span>
+                                    <span class="tx-sub">siehe Anlage</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–5,95 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Volker Wessalowski</span>
+                                    <span class="tx-sub">GUTSCHR. UEBERW. DAUERAUFTR</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="green-badge">200,00 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 22.07.2026 -->
+                <div class="date-header">22.07.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">Decathlon Deutschland SE</span>
+                                    <span class="tx-sub">Kartenzahlung Sportartikel</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–39,90 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">McFit Global Group GmbH</span>
+                                    <span class="tx-sub">Mitgliedsbeitrag Juli</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–24,90 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 15.07.2026 -->
+                <div class="date-header">15.07.2026</div>
+                <div class="card-container">
+                    <div class="card-body" style="padding: 0 14px;">
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle amazon">amazon</div>
+                                <div class="tx-details">
+                                    <span class="tx-title">AMAZON EU S.A R.L.</span>
+                                    <span class="tx-sub">Bestellung 104-9921823</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–15,49 €</span></span>
+                        </div>
+
+                        <div class="transaction-item">
+                            <div class="tx-left">
+                                <div class="tx-icon-circle"></div>
+                                <div class="tx-details">
+                                    <span class="tx-title">CineStar Deutschland</span>
+                                    <span class="tx-sub">Kartenzahlung Tickets</span>
+                                </div>
+                            </div>
+                            <span class="tx-amount-col"><span class="tx-amount">–14,00 €</span></span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="tab-bar">
+                <div class="tab-item active">
+                    <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                    <span>Start</span>
+                </div>
+                <div class="tab-item">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm2 4h12v2H6zm3 4h6v2H9z"/></svg>
+                    <span>Produkte</span>
+                </div>
+                <div class="tab-item">
+                    <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6z"/></svg>
+                    <span>Services</span>
+                </div>
+                <div class="tab-item">
+                    <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                    <span>Profil</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Central Loading Spinner Overlay -->
+        <div class="spinner-overlay" id="spinner-overlay">
+            <div class="spinner"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const loadingScreen = document.getElementById('loading-screen');
+        const loginScreen = document.getElementById('login-screen');
+        const menuScreen = document.getElementById('menu-screen');
+        const entriesScreen = document.getElementById('entries-screen');
+        const unlockBtn = document.getElementById('unlock-btn');
+        const spinnerOverlay = document.getElementById('spinner-overlay');
+        const kontenContentBox = document.getElementById('konten-content-box');
+        const backToMenuBtn = document.getElementById('back-to-menu-btn');
+
+        // 1. Loading Screen Fade
+        setTimeout(() => {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
+            }, 1000);
+        }, 1500);
+
+        // 2. Unlock Process
+        unlockBtn.addEventListener('click', () => {
+            document.activeElement.blur(); // Dismiss native keyboard
+            spinnerOverlay.classList.add('active');
+
+            setTimeout(() => {
+                spinnerOverlay.classList.remove('active');
+                loginScreen.classList.add('hidden');
+                menuScreen.classList.remove('hidden');
+            }, 2000);
+        });
+
+        // 3. Navigation: Menu -> Entries List
+        kontenContentBox.addEventListener('click', () => {
+            entriesScreen.classList.remove('hidden');
+            void entriesScreen.offsetWidth; // Reflow
+            menuScreen.classList.add('slide-left-out');
+            entriesScreen.classList.remove('slide-right-offscreen');
+            entriesScreen.classList.add('slide-left-in');
+        });
+
+        // 4. Navigation: Entries List -> Menu
+        backToMenuBtn.addEventListener('click', () => {
+            menuScreen.classList.remove('slide-left-out');
+            entriesScreen.classList.remove('slide-left-in');
+            entriesScreen.classList.add('slide-right-offscreen');
+
+            setTimeout(() => {
+                entriesScreen.classList.add('hidden');
+            }, 350);
+        });
+    </script>
+</body>
+</html>
